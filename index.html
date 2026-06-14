@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🎂 Birthday Checker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap');
+
+:root {
+  --accent: #f7c948;
+  --pink: #ff6b6b;
+  --purple: #a78bfa;
+  --green: #34d399;
+  --blue: #60a5fa;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  background: #050510;
+}
+
+/* ── Animated BG ── */
+.bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(135deg, #050510, #0d0d2b, #1a0533, #050510);
+  background-size: 400% 400%;
+  animation: bgShift 8s ease infinite;
+}
+@keyframes bgShift {
+  0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
+}
+
+/* ── Stars ── */
+.stars { position:fixed; inset:0; z-index:1; pointer-events:none; }
+.star {
+  position:absolute; background:#fff; border-radius:50%;
+  animation: twinkle 2s infinite alternate;
+}
+@keyframes twinkle { from{opacity:.1} to{opacity:.9} }
+
+/* ── Floating orbs ── */
+.orb {
+  position: fixed; border-radius: 50%; filter: blur(80px);
+  opacity: 0.15; z-index: 1; animation: orbFloat 10s ease-in-out infinite alternate;
+}
+@keyframes orbFloat {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(40px, -40px) scale(1.1); }
+}
+
+/* ── Canvas ── */
+#fwCanvas { position:fixed; inset:0; z-index:5; pointer-events:none; }
+
+/* ── Card ── */
+.card {
+  position: relative; z-index: 10;
+  width: 440px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(24px);
+  border-radius: 32px;
+  padding: 50px 40px 44px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: transform 0.6s cubic-bezier(.34,1.56,.64,1);
+}
+
+/* ── INPUT SCREEN ── */
+.screen-title {
+  font-size: 2rem; font-weight: 900; color: #fff;
+  margin-bottom: 6px; letter-spacing: -0.5px;
+}
+.screen-sub { color: #888; font-size: 0.9rem; margin-bottom: 32px; }
+
+.input-wrap { position: relative; }
+input[type=number] {
+  width: 100%; padding: 18px 24px; font-size: 1.4rem;
+  font-family: 'Poppins', sans-serif; font-weight: 700;
+  border-radius: 16px; border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06); color: #fff;
+  text-align: center; outline: none; letter-spacing: 6px;
+  transition: all 0.3s;
+}
+input[type=number]:focus {
+  border-color: var(--accent);
+  background: rgba(247,201,72,0.08);
+  box-shadow: 0 0 0 4px rgba(247,201,72,0.15);
+}
+input[type=number]::placeholder { letter-spacing: 1px; color: #555; font-size: 0.95rem; font-weight: 400; }
+input.shake { animation: shake 0.4s ease; }
+@keyframes shake {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-10px)}
+  40%{transform:translateX(10px)}
+  60%{transform:translateX(-7px)}
+  80%{transform:translateX(7px)}
+}
+
+.check-btn {
+  margin-top: 16px; width: 100%; padding: 17px;
+  font-family: 'Poppins', sans-serif; font-size: 1.1rem; font-weight: 700;
+  border: none; border-radius: 16px; cursor: pointer; color: #fff;
+  background: linear-gradient(135deg, #f7c948, #ff6b6b, #a78bfa);
+  background-size: 200%; animation: gradShift 3s ease infinite;
+  box-shadow: 0 8px 32px rgba(247,201,72,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative; overflow: hidden;
+}
+.check-btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(rgba(255,255,255,0.15), transparent);
+  border-radius: 16px;
+}
+.check-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(247,201,72,0.45); }
+.check-btn:active { transform: scale(0.97); }
+@keyframes gradShift { 0%,100%{background-position:0%} 50%{background-position:100%} }
+
+#errorMsg { color: var(--pink); margin-top:12px; font-size:0.85rem; min-height:20px; }
+
+/* ── LOCK SCREEN ── */
+#lockScreen { display:none; text-align:center; }
+.lock-icon {
+  font-size: 3.5rem; margin-bottom: 14px;
+  filter: drop-shadow(0 0 20px rgba(247,201,72,0.5));
+  animation: lockFloat 2.4s ease-in-out infinite alternate;
+}
+@keyframes lockFloat {
+  from { transform: translateY(0) rotate(-3deg); }
+  to   { transform: translateY(-8px) rotate(3deg); }
+}
+#lockScreen input[type=password] {
+  width: 100%; padding: 18px 24px; font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif; font-weight: 700;
+  border-radius: 16px; border: 2px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06); color: #fff;
+  text-align: center; outline: none; letter-spacing: 4px;
+  transition: all 0.3s;
+}
+#lockScreen input[type=password]:focus {
+  border-color: var(--accent);
+  background: rgba(247,201,72,0.08);
+  box-shadow: 0 0 0 4px rgba(247,201,72,0.15);
+}
+#lockScreen input[type=password]::placeholder { letter-spacing: 1px; color: #555; font-size: 0.95rem; font-weight: 400; }
+#lockError { color: var(--pink); margin-top:12px; font-size:0.85rem; min-height:20px; }
+
+/* ── RESULT SCREEN ── */
+#resultScreen { display:none; flex-direction:column; align-items:center; gap:10px; }
+
+/* Countdown */
+#countdown {
+  font-size: 6rem; font-weight: 900; color: #fff;
+  text-shadow: 0 0 40px var(--accent), 0 0 80px var(--pink);
+  display: none;
+}
+
+/* Cake */
+.cake-wrap { position: relative; display: inline-block; }
+#cakeEmoji {
+  font-size: 6.5rem; display: block;
+  animation: cakeBounce 0.8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 20px rgba(247,201,72,0.6));
+}
+@keyframes cakeBounce {
+  from { transform: translateY(0) rotate(-3deg) scale(1); }
+  to   { transform: translateY(-16px) rotate(3deg) scale(1.05); }
+}
+.sparkles {
+  position:absolute; inset:-20px; pointer-events:none;
+  animation: rotateSpark 4s linear infinite;
+}
+@keyframes rotateSpark { to { transform: rotate(360deg); } }
+.spark {
+  position:absolute; font-size:1.2rem;
+  animation: sparkPulse 1s ease-in-out infinite alternate;
+}
+@keyframes sparkPulse { from{opacity:0.3;transform:scale(0.8)} to{opacity:1;transform:scale(1.2)} }
+
+/* Tag */
+.person-tag {
+  display: inline-block; padding: 4px 16px;
+  background: rgba(247,201,72,0.15); border: 1px solid rgba(247,201,72,0.4);
+  border-radius: 999px; color: var(--accent); font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  animation: fadeUp 0.5s ease 0.2s both;
+}
+
+/* HB text */
+.hb-text {
+  font-size: 1.5rem; font-weight: 600; color: rgba(255,255,255,0.8);
+  animation: fadeUp 0.5s ease 0.4s both;
+}
+
+/* Name typewriter */
+.name-display {
+  font-size: 3.6rem; font-weight: 900; min-height: 68px;
+  background: linear-gradient(90deg, #f7c948, #ff6b6b, #a78bfa, #34d399, #60a5fa, #f7c948);
+  background-size: 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  animation: nameRainbow 3s linear infinite, fadeUp 0.5s ease 0.6s both;
+}
+@keyframes nameRainbow { 0%{background-position:0%} 100%{background-position:400%} }
+
+/* Quote */
+.bday-quote {
+  font-size: 0.85rem; color: #888; font-style: italic;
+  max-width: 300px; line-height: 1.5;
+  animation: fadeUp 0.5s ease 0.8s both;
+}
+
+/* Emoji strip */
+.emoji-strip {
+  font-size: 1.7rem; letter-spacing: 6px;
+  animation: fadeUp 0.5s ease 1s both;
+}
+
+/* Color bar */
+.color-bar {
+  width: 80px; height: 4px; border-radius: 999px; margin: 4px auto;
+  animation: fadeUp 0.5s ease 0.9s both;
+}
+
+/* Share / Back row */
+.action-row { display:flex; gap:10px; margin-top:4px; animation: fadeUp 0.5s ease 1.1s both; }
+.share-btn, .back-btn {
+  flex:1; padding:12px 16px;
+  font-family:'Poppins',sans-serif; font-size:0.9rem; font-weight:600;
+  border-radius:12px; cursor:pointer; transition:all 0.2s;
+}
+.share-btn {
+  background: linear-gradient(135deg, var(--accent), var(--pink));
+  border:none; color:#fff;
+  box-shadow: 0 4px 16px rgba(247,201,72,0.3);
+}
+.share-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(247,201,72,0.45); }
+.back-btn {
+  background:transparent; border:2px solid rgba(255,255,255,0.15); color:#aaa;
+}
+.back-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── Balloons ── */
+.balloon { position:fixed; z-index:4; pointer-events:none; font-size:2.8rem; animation: balloonUp linear forwards; }
+@keyframes balloonUp {
+  0%   { transform:translateY(110vh) rotate(-10deg); opacity:1; }
+  80%  { opacity:1; }
+  100% { transform:translateY(-15vh) rotate(10deg); opacity:0; }
+}
+
+/* ── Toast ── */
+#toast {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:rgba(255,255,255,0.1); backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.2); border-radius:12px;
+  padding:12px 24px; color:#fff; font-size:0.9rem; z-index:20;
+  transition:transform 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+#toast.show { transform:translateX(-50%) translateY(0); }
+
+@media(max-width:480px){
+  .card{width:95vw; padding:36px 24px;}
+  .name-display{font-size:2.8rem;}
+  #cakeEmoji{font-size:5rem;}
+}
+
+/* ── WISH CARD MODAL (imported) ── */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+
+.overlay {
+  position:fixed; inset:0; z-index:100;
+  background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity 0.4s;
+}
+.overlay.show { opacity:1; pointer-events:all; }
+
+.wish-card {
+  width:380px; max-width:94vw;
+  border-radius:28px; overflow:hidden;
+  box-shadow:0 40px 100px rgba(0,0,0,0.8);
+  transform:scale(0.7) translateY(60px) rotateX(20deg);
+  transition:transform 0.5s cubic-bezier(.34,1.56,.64,1);
+  position:relative;
+}
+.overlay.show .wish-card { transform:scale(1) translateY(0) rotateX(0deg); }
+
+.wc-cover {
+  padding:44px 32px 36px;
+  text-align:center;
+  position:relative; overflow:hidden; min-height:240px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+}
+.wc-cover-bg { position:absolute; inset:0; }
+.wc-big-emoji { font-size:5.5rem; position:relative; z-index:2; animation:wcCakeBounce 0.9s ease-in-out infinite alternate; filter:drop-shadow(0 0 16px rgba(247,201,72,0.7)); }
+@keyframes wcCakeBounce { from{transform:translateY(0) scale(1)} to{transform:translateY(-14px) scale(1.06)} }
+.wc-cover-title { font-family:'Dancing Script',cursive; font-size:2.2rem; color:#fff; position:relative; z-index:2; text-shadow:0 2px 16px rgba(0,0,0,0.4); }
+.wc-cover-sub { font-size:0.85rem; color:rgba(255,255,255,0.7); position:relative; z-index:2; letter-spacing:2px; text-transform:uppercase; }
+.wc-star { position:absolute; font-size:1.2rem; animation:wcStarSpin 3s linear infinite; }
+@keyframes wcStarSpin { 0%{transform:rotate(0) scale(0.8); opacity:0.5} 50%{opacity:1;scale:1.2} 100%{transform:rotate(360deg) scale(0.8); opacity:0.5} }
+
+.wc-inner {
+  background:#fff;
+  padding:30px 28px 24px;
+  text-align:center;
+}
+.wc-inner-name {
+  font-family:'Dancing Script',cursive;
+  font-size:2rem; font-weight:700; margin-bottom:10px;
+}
+.wc-message {
+  font-size:0.92rem; color:#555; line-height:1.75; margin-bottom:18px;
+}
+.wc-emoji-strip { font-size:1.6rem; letter-spacing:6px; margin-bottom:18px; }
+.wc-sig { font-family:'Dancing Script',cursive; font-size:1.2rem; color:#aaa; }
+
+.wc-btns { display:flex; gap:10px; padding:16px 28px 24px; background:#fff; }
+.wc-close, .wc-share {
+  flex:1; padding:12px; border-radius:12px; border:none;
+  font-family:'Poppins',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer; transition:all 0.2s;
+}
+.wc-close { background:#f0f0f0; color:#666; }
+.wc-close:hover { background:#e0e0e0; }
+.wc-share { color:#fff; }
+.wc-share:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+
+.conf-piece { position:absolute; width:8px; height:8px; border-radius:2px; pointer-events:none; animation:confFall linear forwards; }
+@keyframes confFall {
+  0%   { transform:translateY(-20px) rotate(0deg); opacity:1; }
+  100% { transform:translateY(300px) rotate(720deg); opacity:0; }
+}
+
+/* ── Dev Credit ── */
+.dev-credit {
+  position: fixed; top: 20px; right: 24px;
+  z-index: 50; display:flex; align-items:center; gap:8px;
+  color: rgba(255,255,255,0.75); font-size: 0.78rem;
+  font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 8px 18px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  transition: all 0.3s;
+}
+.dev-credit:hover {
+  border-color: rgba(247,201,72,0.5);
+  background: rgba(247,201,72,0.08);
+  transform: translateY(-2px);
+}
+.dev-credit .dev-dot {
+  width:7px; height:7px; border-radius:50%;
+  background: linear-gradient(135deg, var(--accent), var(--pink));
+  box-shadow: 0 0 10px var(--accent);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse { 0%,100%{opacity:0.6; transform:scale(1)} 50%{opacity:1; transform:scale(1.3)} }
+.dev-credit .dev-label { color: rgba(255,255,255,0.45); font-weight:400; letter-spacing: 1px; }
+.dev-credit .dev-name {
+  background: linear-gradient(90deg, var(--accent), var(--pink), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+@media(max-width:480px){
+  .dev-credit{ top:14px; right:14px; font-size:0.68rem; padding:6px 12px; gap:6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+<div class="stars" id="stars"></div>
+
+<!-- Orbs -->
+<div class="orb" style="width:400px;height:400px;background:#a78bfa;top:-100px;left:-100px;animation-duration:12s;"></div>
+<div class="orb" style="width:300px;height:300px;background:#ff6b6b;bottom:-80px;right:-80px;animation-duration:9s;animation-direction:alternate-reverse;"></div>
+<div class="orb" style="width:250px;height:250px;background:#34d399;bottom:30%;left:-60px;animation-duration:14s;"></div>
+
+<canvas id="fwCanvas"></canvas>
+
+<div class="dev-credit"><span class="dev-dot"></span><span class="dev-label">Developed by</span><span class="dev-name">Shamas</span></div>
+
+<div class="card" id="card">
+
+  <!-- INPUT SCREEN -->
+  <div id="inputScreen">
+    <div class="screen-title">🎂 Birthday Checker</div>
+    <div class="screen-sub">Enter a date to reveal whose special day it is</div>
+    <div class="input-wrap">
+      <input type="number" id="dateInput" placeholder="Enter date  1 – 31" min="1" max="31"/>
+    </div>
+    <button class="check-btn" onclick="check()">✨ Check Birthday</button>
+    <p id="errorMsg"></p>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="countdown"></div>
+
+  <!-- LOCK SCREEN -->
+  <div id="lockScreen">
+    <div class="lock-icon">🔒</div>
+    <div class="screen-title">Private Birthday</div>
+    <div class="screen-sub">This entry is protected. Enter the password to continue.</div>
+    <div class="input-wrap">
+      <input type="password" id="lockInput" placeholder="Enter password"/>
+    </div>
+    <button class="check-btn" onclick="checkLockPassword()">🔓 Unlock</button>
+    <p id="lockError"></p>
+    <button class="back-btn" style="margin-top:10px;width:100%;" onclick="lockBack()">← Go Back</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="resultScreen">
+    <div class="cake-wrap">
+      <div class="sparkles" id="sparklesWrap"></div>
+      <span id="cakeEmoji">🎂</span>
+    </div>
+    <div class="person-tag" id="personTag">🎉 BIRTHDAY STAR</div>
+    <div class="hb-text">Happy Birthday</div>
+    <div class="name-display" id="nameDisplay"></div>
+    <div class="color-bar" id="colorBar"></div>
+    <div class="bday-quote" id="bdayQuote"></div>
+    <div class="emoji-strip" id="emojiStrip"></div>
+    <div class="action-row">
+      <button class="share-btn" onclick="shareMsg()">📤 Share Wish</button>
+      <button class="back-btn" onclick="goBack()">← Go Back</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast">✅ Birthday wish copied to clipboard!</div>
+
+<!-- Wish Card Modal -->
+<div class="overlay" id="overlay" onclick="closeWishCard(event)">
+  <div class="wish-card" id="wishCard">
+    <div class="wc-cover" id="wcCover">
+      <div class="wc-cover-bg" id="wcCoverBg"></div>
+      <div class="wc-big-emoji" id="wcEmoji">🎂</div>
+      <div class="wc-cover-title" id="wcTitle">Happy Birthday!</div>
+      <div class="wc-cover-sub" id="wcSub">Wishing you a wonderful day</div>
+    </div>
+    <div class="wc-inner">
+      <div class="wc-inner-name" id="wcName"></div>
+      <div class="wc-message" id="wcMsg"></div>
+      <div class="wc-emoji-strip" id="wcStrip"></div>
+      <div class="wc-sig">— With love & warm wishes 💖</div>
+    </div>
+    <div class="wc-btns">
+      <button class="wc-close" onclick="closeWishCard()">✕ Close</button>
+      <button class="wc-share" id="wcShareBtn" onclick="shareWishCard()">📤 Share Wish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ─────────────────────────────────────────────
+const birthdays = {
+  10: { name:"Arham", color:"#60a5fa", emoji:"🎂", quote:"May your day be as amazing as you are, Arham! 💙", strip:"🎈 🥳 🎁 🎊 🎈",
+        date:"10th", color1:"#1e3a8a", color2:"#3b82f6",
+        message:"Dear Arham,\nMay this birthday bring you endless joy, laughter and beautiful memories. You deserve all the happiness the world has to offer. Keep shining and inspiring everyone around you! 💙" },
+  14: { name:"Zaghum", color:"#60a5fa", emoji:"🎂", quote:"May your day be as amazing as you are, Zaghum! 💙", strip:"🎈 🥳 🎁 🎊 🎈",
+        date:"14th", color1:"#1e3a8a", color2:"#3b82f6",
+        message:"Dear Zaghum,\nMay this birthday bring you endless joy, laughter and beautiful memories. You deserve all the happiness the world has to offer. Keep shining and inspiring everyone around you! 💙" },
+   5: { name:"Shamas", color:"#f472b6", emoji:"🌸", quote:"Wishing you all the happiness in the world, Shamas! 🌸", strip:"💐 🥳 🎊 🌸 💐",
+        date:"5th", color1:"#831843", color2:"#ec4899",
+        message:"Dear Shamas,\nOn your special day, I wish you nothing but the brightest smiles and the warmest moments. You make every day more beautiful just by being in it. Happy Birthday! 🌸" },
+  17: { name:"Hadi",   color:"#34d399", emoji:"🥳", quote:"Another year older, wiser and awesome, Hadi! 💚", strip:"🎈 🎁 🎊 🥳 🎈",
+        date:"17th", color1:"#064e3b", color2:"#10b981",
+        message:"Dear Hadi,\nAnother year of being absolutely awesome! May this year bring you new adventures, great success and unforgettable moments. You are one in a million, keep rocking! 💚" },
+  24: { name:"Noor",   color:"#f7c948", emoji:"🌟", quote:"You light up every room you walk into, Noor! ⭐", strip:"✨ 🌟 🎊 🎈 ✨",
+        date:"24th", color1:"#78350f", color2:"#f59e0b",
+        message:"Dear Noor,\nYou truly are a shining star ⭐ Your kindness and warmth light up every room you walk into. May your birthday be as bright and golden as you are. Wishing you the very best! 💛" },
+  13: { name:"Mohid",  color:"#a78bfa", emoji:"🎸", quote:"Keep rocking life like a superstar, Mohid! 💜", strip:"🎸 🥳 🎊 🎈 🎸",
+        date:"13th", color1:"#3b0764", color2:"#8b5cf6",
+        message:"Dear Mohid,\nHappy Birthday to someone who makes every moment more fun and exciting! May this year be your best yet, filled with great music, great vibes and amazing memories. Keep being legendary! 💜" },
+  18: { name:"Abraham", color:"#fb923c", emoji:"🎉", quote:"Wishing you a year full of success and happiness, Abraham! 🧡", strip:"🎉 🎈 🎁 🥳 🎊",
+        date:"18th", color1:"#7c2d12", color2:"#fb923c",
+        message:"Dear Abraham,\nHappy Birthday to a truly wonderful person! May this new year of your life be filled with great achievements, good health and countless happy moments. Enjoy your special day to the fullest! 🧡" },
+   4: { name:"Saim", color:"#22d3ee", emoji:"🎈", quote:"Have a super amazing birthday, Saim! 💎", strip:"🎈 🎊 💎 🥳 🎈",
+        date:"4th", color1:"#164e63", color2:"#22d3ee",
+        message:"Dear Saim,\nHappy Birthday! May your day be filled with laughter, your year with success, and your life with endless beautiful moments. Here's to celebrating you today and always! 💎" },
+};
+
+// ── Stars ─────────────────────────────────────────────
+const starsEl = document.getElementById('stars');
+for (let i=0;i<140;i++){
+  const s = document.createElement('div'); s.className='star';
+  const sz = Math.random()*2.5+0.5;
+  s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;animation-delay:${Math.random()*4}s;animation-duration:${1.5+Math.random()*2.5}s`;
+  starsEl.appendChild(s);
+}
+
+// ── Sparkle positions ─────────────────────────────────
+const sparkPos = [
+  {top:'5%',left:'50%'},{top:'20%',left:'95%'},{top:'50%',left:'100%'},
+  {top:'80%',left:'90%'},{top:'95%',left:'50%'},{top:'80%',left:'5%'},
+  {top:'50%',left:'0%'},{top:'20%',left:'5%'}
+];
+
+// ── Check ─────────────────────────────────────────────
+const LOCKED_DATE = 24;
+const LOCK_PASSWORD = "noor";
+
+function check() {
+  const val = document.getElementById('dateInput').value.trim();
+  const err = document.getElementById('errorMsg');
+  const inp = document.getElementById('dateInput');
+  if (!val || val<1 || val>31) {
+    err.textContent='⚠️ Please enter a valid date between 1 and 31.';
+    inp.classList.remove('shake'); void inp.offsetWidth; inp.classList.add('shake');
+    return;
+  }
+  err.textContent='';
+
+  if (+val === LOCKED_DATE) {
+    openLockScreen();
+    return;
+  }
+
+  const data = birthdays[+val] || null;
+  runCountdown(data);
+}
+
+function openLockScreen() {
+  document.getElementById('inputScreen').style.display = 'none';
+  document.getElementById('lockScreen').style.display = 'block';
+  document.getElementById('lockInput').value = '';
+  document.getElementById('lockError').textContent = '';
+  setTimeout(()=>document.getElementById('lockInput').focus(), 100);
+}
+
+function checkLockPassword() {
+  const pass = document.getElementById('lockInput').value;
+  const lockErr = document.getElementById('lockError');
+  const lockInp = document.getElementById('lockInput');
+  if (pass === LOCK_PASSWORD) {
+    document.getElementById('lockScreen').style.display = 'none';
+    const data = birthdays[LOCKED_DATE] || null;
+    runCountdown(data);
+  } else {
+    lockErr.textContent = '🔒 Incorrect password. Try again.';
+    lockInp.classList.remove('shake'); void lockInp.offsetWidth; lockInp.classList.add('shake');
+  }
+}
+
+function lockBack() {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('inputScreen').style.display = 'block';
+  document.getElementById('dateInput').value = '';
+}
+
+function runCountdown(data) {
+  document.getElementById('inputScreen').style.display = 'none';
+  const cd = document.getElementById('countdown');
+  cd.style.display = 'block';
+  const nums = ['3','2','1','🎉'];
+  let i = 0;
+  cd.textContent = nums[i];
+  const iv = setInterval(() => {
+    i++;
+    if (i < nums.length) { cd.textContent = nums[i]; }
+    else {
+      clearInterval(iv);
+      cd.style.display = 'none';
+      showResult(data);
+    }
+  }, 700);
+}
+
+function showResult(data) {
+  const rs = document.getElementById('resultScreen');
+  rs.style.display = 'flex';
+
+  if (data) {
+    document.getElementById('cakeEmoji').textContent   = data.emoji;
+    document.getElementById('nameDisplay').textContent = data.name + '!';
+    document.getElementById('bdayQuote').textContent   = data.quote;
+    document.getElementById('emojiStrip').textContent  = data.strip;
+    document.getElementById('colorBar').style.background = data.color;
+    document.getElementById('personTag').textContent   = '🎉 BIRTHDAY STAR';
+
+    // Sparkles
+    const sw = document.getElementById('sparklesWrap');
+    sw.innerHTML = '';
+    sparkPos.forEach((pos, idx) => {
+      const sp = document.createElement('div'); sp.className='spark';
+      sp.textContent = ['✨','⭐','💫','🌟','✨'][idx % 5];
+      sp.style.cssText = `top:${pos.top};left:${pos.left};animation-delay:${idx*0.15}s`;
+      sw.appendChild(sp);
+    });
+
+    startFireworks();
+    spawnBalloons();
+    speakBirthday(data.name);
+    setTimeout(()=>openWishCard(data), 600);
+  } else {
+    document.getElementById('cakeEmoji').textContent   = '😊';
+    document.getElementById('nameDisplay').textContent = 'Stranger!';
+    document.getElementById('bdayQuote').textContent   = 'Every day can be a celebration — Happy Birthday anyway! 🎉';
+    document.getElementById('emojiStrip').textContent  = '🎈 🎉 🎊 🥳 🎈';
+    document.getElementById('colorBar').style.background = '#888';
+    document.getElementById('personTag').textContent   = '🎈 MYSTERY GUEST';
+    document.getElementById('sparklesWrap').innerHTML = '';
+    spawnBalloons(true);
+  }
+}
+
+function goBack() {
+  document.getElementById('inputScreen').style.display = 'block';
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('dateInput').value = '';
+  stopFW(); clearBalloons();
+  document.getElementById('sparklesWrap').innerHTML='';
+  closeWishCard(null);
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function shareMsg() {
+  const name = document.getElementById('nameDisplay').textContent;
+  const quote = document.getElementById('bdayQuote').textContent;
+  const msg = `🎂 Happy Birthday ${name}\n${quote}\n\n🎈🎉🎊`;
+  navigator.clipboard.writeText(msg).then(() => showToast());
+}
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.getElementById('dateInput').addEventListener('keydown', e => { if(e.key==='Enter') check(); });
+document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') checkLockPassword(); });
+
+// ── Fireworks ─────────────────────────────────────────
+const fw = document.getElementById('fwCanvas');
+const fwCtx = fw.getContext('2d');
+let fwParts=[], fwRun=false, fwAF, fwIv;
+function resize(){ fw.width=innerWidth; fw.height=innerHeight; }
+resize(); window.addEventListener('resize', resize);
+
+function burst(x,y,big=false){
+  const cols=['#f7c948','#ff6b6b','#a78bfa','#34d399','#60a5fa','#fb923c','#f472b6','#fff'];
+  const count = big ? 90 : 55;
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2, sp=Math.random()*6+2;
+    fwParts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,alpha:1,color:cols[~~(Math.random()*cols.length)],r:Math.random()*4+2,trail:[]});
+  }
+}
+function drawFW(){
+  fwCtx.clearRect(0,0,fw.width,fw.height);
+  fwParts.forEach(p=>{
+    fwCtx.save(); fwCtx.globalAlpha=p.alpha; fwCtx.fillStyle=p.color;
+    fwCtx.beginPath(); fwCtx.arc(p.x,p.y,p.r,0,Math.PI*2); fwCtx.fill(); fwCtx.restore();
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.07; p.alpha-=0.017;
+  });
+  fwParts=fwParts.filter(p=>p.alpha>0);
+  if(fwRun) fwAF=requestAnimationFrame(drawFW);
+  else fwCtx.clearRect(0,0,fw.width,fw.height);
+}
+function startFireworks(){
+  fwRun=true; fwParts=[];
+  burst(fw.width*.25,fw.height*.25,true);
+  burst(fw.width*.75,fw.height*.2,true);
+  burst(fw.width*.5,fw.height*.1,true);
+  drawFW();
+  fwIv=setInterval(()=>{ burst(Math.random()*fw.width,Math.random()*fw.height*.5); },600);
+}
+function stopFW(){ fwRun=false; clearInterval(fwIv); cancelAnimationFrame(fwAF); fwCtx.clearRect(0,0,fw.width,fw.height); fwParts=[]; }
+
+// ── Celebration Sound ────────────────────────────────────
+let audioCtx;
+function playChime() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    // Cheerful ascending melody
+    const notes = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50]; // C5 D5 E5 G5 A5 C6
+    notes.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const start = now + i * 0.13;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.25, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.6);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(start); osc.stop(start + 0.65);
+    });
+  } catch(e) { /* audio unsupported */ }
+}
+
+function speakBirthday(name) {
+  playChime();
+}
+
+// ── Wish Card Modal ─────────────────────────────────────
+const wcStarPositions = [
+  {top:'8%',left:'12%'},{top:'6%',left:'80%'},{top:'75%',left:'8%'},
+  {top:'80%',left:'78%'},{top:'40%',left:'5%'},{top:'35%',left:'88%'}
+];
+let currentWishPerson = null;
+
+function openWishCard(data) {
+  currentWishPerson = data;
+  document.getElementById('wcCoverBg').style.background = `linear-gradient(135deg,${data.color1},${data.color2})`;
+  document.getElementById('wcEmoji').textContent = data.emoji;
+  document.getElementById('wcTitle').textContent = `Happy Birthday, ${data.name}!`;
+  document.getElementById('wcSub').textContent   = `Celebrating you on your ${data.date}`;
+
+  const cover = document.getElementById('wcCover');
+  cover.querySelectorAll('.wc-star').forEach(s=>s.remove());
+  const starEmojis = ['✨','⭐','💫','🌟','✨','⭐'];
+  wcStarPositions.forEach((pos,j)=>{
+    const s=document.createElement('div'); s.className='wc-star';
+    s.textContent=starEmojis[j]; s.style.cssText=`top:${pos.top};left:${pos.left};animation-delay:${j*0.4}s`;
+    cover.appendChild(s);
+  });
+
+  document.getElementById('wcName').textContent  = `Dear ${data.name},`;
+  document.getElementById('wcName').style.color  = data.color2;
+  document.getElementById('wcMsg').innerHTML     = data.message.replace(/\n/g,'<br>');
+  document.getElementById('wcStrip').textContent = data.strip;
+  document.getElementById('wcShareBtn').style.background = `linear-gradient(135deg,${data.color1},${data.color2})`;
+
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  spawnConfetti();
+}
+
+function closeWishCard(e) {
+  if(e !== null && e && e.target !== document.getElementById('overlay')) return;
+  document.getElementById('overlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function spawnConfetti() {
+  const wc = document.getElementById('wishCard');
+  wc.querySelectorAll('.conf-piece').forEach(c=>c.remove());
+  const cols=['#f7c948','#ff6b6b','#a78bfa','#34d399','#60a5fa','#fb923c','#f472b6'];
+  for(let i=0;i<30;i++){
+    const c=document.createElement('div'); c.className='conf-piece';
+    c.style.cssText=`left:${Math.random()*100}%;background:${cols[~~(Math.random()*cols.length)]};
+      animation-duration:${1.2+Math.random()*1.5}s;animation-delay:${Math.random()*0.8}s;
+      border-radius:${Math.random()>0.5?'50%':'2px'};`;
+    wc.appendChild(c);
+    setTimeout(()=>c.remove(), 3000);
+  }
+}
+
+function shareWishCard() {
+  if(!currentWishPerson) return;
+  const p = currentWishPerson;
+  const text = `🎂 Happy Birthday ${p.name}!\n\n${p.message}\n\n${p.strip}`;
+  navigator.clipboard.writeText(text).then(()=>showToast());
+}
+
+// ── Balloons ──────────────────────────────────────────
+const ballEmoji=['🎈','🎈','🎊','🥳','🎁','💜','💛','❤️'];
+let ballTimers=[];
+function spawnBalloons(gentle=false){
+  clearBalloons();
+  const count = gentle ? 6 : 14;
+  for(let i=0;i<count;i++){
+    ballTimers.push(setTimeout(()=>{
+      const b=document.createElement('div'); b.className='balloon';
+      b.textContent=ballEmoji[~~(Math.random()*ballEmoji.length)];
+      b.style.left=Math.random()*92+'%';
+      const dur=3.5+Math.random()*3;
+      b.style.animation=`balloonUp ${dur}s ease forwards`;
+      b.style.fontSize=(2+Math.random()*1.5)+'rem';
+      document.body.appendChild(b);
+      setTimeout(()=>b.remove(),dur*1000);
+    },i*280));
+  }
+}
+function clearBalloons(){ ballTimers.forEach(clearTimeout); ballTimers=[]; document.querySelectorAll('.balloon').forEach(b=>b.remove()); }
+</script>
+</body>
+</html>
